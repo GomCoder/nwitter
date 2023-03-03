@@ -1,22 +1,29 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { dbService, storageService } from "fbase";
 import { v4 as uuidv4 } from "uuid";
-import Nweet from "components/Nweet";
-import Home from "routes/Home";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {faPlus, faTimes}  from "@fortawesome/free-solid-svg-icons";
 
 const NweetFactory = ({userObj}) => {    
     const [nweet, setNweet] = useState("");
     const [attachment, setAttachment] = useState("");    
+    
     const onSubmit = async (event) => {
         event.preventDefault();
+
+        if(nweet === "") {
+            return;
+        }
+
         let attachmentUrl = "";
 
         if(attachment !== "") {
             const attachmentRef = storageService
-            .ref()
-            .child(`${userObj.uid}/${uuidv4()}`);
+                                    .ref()
+                                    .child(`${userObj.uid}/${uuidv4()}`);
             const reponse = await attachmentRef.putString(attachment, "data_url");
             attachmentUrl = await reponse.ref.getDownloadURL();
+  
         }
 
         const nweetObj = {
@@ -26,10 +33,16 @@ const NweetFactory = ({userObj}) => {
             attachmentUrl,
         }
 
-
-        await dbService.collection("nweets").add(nweetObj);
+        await dbService.collection("nweets").add({
+            text: nweet,
+            createdAt: Date.now(),
+            creatorId: userObj.uid,
+            attachmentUrl,
+        });
+        
         setNweet("");
         setAttachment("");
+        
     };
 
     const onChange = (event) => {
@@ -53,28 +66,56 @@ const NweetFactory = ({userObj}) => {
             } = finishedEvent;
             setAttachment(result);
         }
-        reader.readAsDataURL(theFile);
+        if(Boolean(theFile)) {
+            reader.readAsDataURL(theFile);
+        }
     };
 
     const onClearAttachment = () => setAttachment("");
 
     return (
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} className="factoryForm">
+            <div className="factoryInput__container">
                 <input
-                    value={nweet}
-                    onChange={onChange}
-                    type="text"
-                    placeholder="What's on your mind?"
-                    maxLength={120}
+                    className="factoryInput__input"
+                        value={nweet}
+                        onChange={onChange}
+                        type="text"
+                        placeholder="What's on your mind?"
+                        maxLength={120}
                 />
-                <input type="file" accept="image/*" onChange={onFileChange}/>
-                <input type="submit" value="Nweet"/>
-                {attachment && (
-                    <div>
-                        <img src={attachment} width="50px" height="50px" />
-                        <button onClick={onClearAttachment}> Clear </button>
+                <input type="submit" value="&rarr;" className="factoryInput__arrow" />
+            </div>
+            <label htmlFor="attach-file" className="factory__label">
+                <span style={{marginRight: 10}}>Add Photos</span>
+                <FontAwesomeIcon icon={faPlus} />
+            </label>
+            <input 
+                id="attach-file"
+                type="file"
+                accept="image/*"
+                onChange={onFileChange}
+
+                style ={{
+                    opacity:0,
+                }}                
+            />
+            {attachment && (
+                <div className="factoryForm__attachment">
+                    <img 
+                        src={attachment} 
+                        style={{
+                            marginBottom: 15,
+                            backgroundImage: attachment,
+                        }}
+                        alt="업로드 할 이미지"
+                    />
+                    <div className="factoryForm__clear" onClick={onClearAttachment}>
+                        <span>Remove</span>
+                        <FontAwesomeIcon icon={faTimes} />
                     </div>
-                )}
+                </div>
+            )}
         </form>
     );
 };
